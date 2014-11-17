@@ -81,7 +81,7 @@ func restRequest(url string, page int) []byte {
 		url = fmt.Sprintf("%s/api/read/json", url)
 	}
 
-	log.Println("REST Request url: ", url)
+	fmt.Println("REST Request url: ", url)
 
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
@@ -104,18 +104,23 @@ func displayRawJson(contents []byte) {
 	if err != nil {
 		log.Fatal("Trouble with json indent!", err)
 	}
+	fmt.Println("")
+	fmt.Println("---")
 	out.WriteTo(os.Stdout)
 	os.Exit(0)
 }
 
 func (t Tumblr) DownloadImages() {
 	for i, post := range t.Posts {
-		fmt.Println(i, " -- ", post.PhotoUrl)
-		fmt.Printf("%+v\n", post)
+		fmt.Println("Post # ", i)
+		fmt.Println(" ---> Caption: ", post.Caption)
+		fmt.Println(" ---> Url    : ", post.PhotoUrl)
 		if post.Class != "photo" {
+			fmt.Println(" ---> SKIPPING (not photo post)")
 			continue
 		}
 		post.downloadImage()
+		fmt.Println()
 	}
 }
 
@@ -162,6 +167,6 @@ func main() {
 	}
 
 	t := NewTumblr(url, *pagePtr)
-	fmt.Println("Blog Title: ", t.Blog.Title)
+	fmt.Println("Blog Title: ", t.Blog.Title, "\n")
 	t.DownloadImages()
 }
