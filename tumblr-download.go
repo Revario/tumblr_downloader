@@ -17,6 +17,11 @@
        # examine the raw JSON output from REST request on tumblr blog
        # (helpful for debugging)
        tumblr-download -raw http://jnightscape.tumblr.com
+
+   Note:
+
+       Pictures will download to the current working directory where
+       you're running the command.
 */
 package main
 
