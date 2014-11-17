@@ -57,11 +57,6 @@ func NewTumblr(url string, page int) Tumblr {
 
 	var t Tumblr
 	json.Unmarshal(contents, &t)
-
-	//fmt.Printf("%+v\n", t)
-	//fmt.Printf("%T\n", t.Posts)
-	//os.Exit(0)
-
 	return t
 }
 
@@ -110,7 +105,6 @@ func displayRawJson(contents []byte) {
 		log.Fatal("Trouble with json indent!", err)
 	}
 	out.WriteTo(os.Stdout)
-	// fmt.Printf("%T\n", contents)
 	os.Exit(0)
 }
 
@@ -144,18 +138,9 @@ func (p Post) downloadImage() {
 	}
 
 	err = ioutil.WriteFile(filename, contents, 0644)
-	// f, err := os.Create("foo")
 	if err != nil {
 		log.Fatal("Trouble creating file! -- ", err)
 	}
-	//defer f.Close()
-
-	//numBytes, err := f.Write(contents)
-	//if err != nil {
-	//    log.Fatal("Trouble making a write!")
-	//}
-	//log.Printf("Wrote %d bytes\n", numBytes)
-	//f.Sync()
 }
 
 func main() {
@@ -163,7 +148,6 @@ func main() {
 	rawJsonPtr := flag.Bool("raw", false, "dump raw json output for debugging")
 	flag.Parse()
 
-	//url := "http://jnightscape.tumblr.com/api/read/json"
 	url := flag.Arg(0)
 	if url == "" {
 		fmt.Fprintf(os.Stderr, "Please supply a tumblr url!\n")
