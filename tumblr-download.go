@@ -176,7 +176,8 @@ func main() {
 	allPtr := flag.Bool("all", false, "downloads all images")
 	flag.Parse()
 
-	url := flag.Arg(0)
+	url := strings.TrimSuffix(flag.Arg(0), "/")
+
 	if url == "" {
 		fmt.Fprint(os.Stderr, "Please supply a tumblr url!\n")
 		fmt.Fprintf(os.Stderr, "usage: %s [options] url\n", os.Args[0])
