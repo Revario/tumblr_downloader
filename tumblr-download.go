@@ -36,6 +36,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 )
 
 type Post struct {
@@ -53,8 +54,9 @@ type TumblrLog struct {
 }
 
 type Tumblr struct {
-	Blog  TumblrLog `json:"tumblelog"`
-	Posts []Post    `json:"posts"`
+	Blog          TumblrLog `json:"tumblelog"`
+	Posts         []Post    `json:"posts"`
+	NumberOfPosts int       `json:"posts-total"`
 }
 
 func NewTumblr(url string, page int) Tumblr {
@@ -156,11 +158,12 @@ func (p Post) downloadImage() {
 func main() {
 	pagePtr := flag.Int("page", 1, "blog page to download")
 	rawJsonPtr := flag.Bool("raw", false, "dump raw json output for debugging")
+	allPtr := flag.Bool("all", false, "downloads all images")
 	flag.Parse()
 
 	url := flag.Arg(0)
 	if url == "" {
-		fmt.Fprintf(os.Stderr, "Please supply a tumblr url!\n")
+		fmt.Fprint(os.Stderr, "Please supply a tumblr url!\n")
 		fmt.Fprintf(os.Stderr, "usage: %s [options] url\n", os.Args[0])
 		os.Exit(0)
 	}
@@ -171,7 +174,28 @@ func main() {
 		os.Exit(0)
 	}
 
-	t := NewTumblr(url, *pagePtr)
-	fmt.Println("Blog Title: ", t.Blog.Title, "\n")
-	t.DownloadImages()
+	if *allPtr == true {
+		t := NewTumblr(url, *pagePtr)
+		pages := t.NumberOfPosts / 20
+		if t.NumberOfPosts%20 != 0 {
+			pages++
+		}
+
+		for i := 1; i < pages; i++ {
+			t := NewTumblr(url, i)
+			t.DownloadImages()
+			time.Sleep(time.Duration(10) * time.Second)
+		}
+
+		fmt.Println("Number of Posts: ", t.NumberOfPosts)
+		os.Exit(0)
+
+	} else {
+		t := NewTumblr(url, *pagePtr)
+		fmt.Println("Blog Title: ", t.Blog.Title)
+		fmt.Println("Number of Posts: ", t.NumberOfPosts)
+		t.DownloadImages()
+		os.Exit(0)
+	}
+
 }
