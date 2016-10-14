@@ -139,7 +139,7 @@ func (p Post) downloadImage() {
 
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Trouble reading reesponse body!")
+		log.Fatal("Trouble reading response body!")
 	}
 
 	filename := path.Base(p.PhotoUrl)
