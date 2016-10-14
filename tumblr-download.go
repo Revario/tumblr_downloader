@@ -30,6 +30,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"gopkg.in/cheggaaa/pb.v1"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -197,14 +198,22 @@ func main() {
 			pages++
 		}
 
+		bar := pb.New(pages)
+
+		bar.SetRefreshRate(time.Second)
+		bar.SetWidth(80)
+		bar.SetMaxWidth(100)
+		bar.Start()
+
 		for i := 1; i < pages; i++ {
 			t := NewTumblr(url, i, true)
 			t.DownloadImages(true)
 			pageCounter++
-			time.Sleep(time.Duration(10) * time.Second)
+			bar.Increment()
+			time.Sleep(10 * time.Second)
 		}
-
-		fmt.Printf("Done! %d of %d pages downloaded", pageCounter, pages)
+		bar.FinishPrint("Done! " + string(pageCounter) + " of " + string(pages) + " downloaded")
+		//fmt.Printf("Done! %d of %d pages downloaded", pageCounter, pages)
 		os.Exit(0)
 
 	} else {
