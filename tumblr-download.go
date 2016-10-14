@@ -30,13 +30,17 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"gopkg.in/cheggaaa/pb.v1"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"path"
 	"strings"
+	"time"
 )
+
+var pageCounter = 0
 
 type Post struct {
 	Id       string `json:"id"`
@@ -53,20 +57,21 @@ type TumblrLog struct {
 }
 
 type Tumblr struct {
-	Blog  TumblrLog `json:"tumblelog"`
-	Posts []Post    `json:"posts"`
+	Blog          TumblrLog `json:"tumblelog"`
+	Posts         []Post    `json:"posts"`
+	NumberOfPosts int       `json:"posts-total"`
 }
 
-func NewTumblr(url string, page int) Tumblr {
-	contents := GetJson(url, page)
+func NewTumblr(url string, page int, silent bool) Tumblr {
+	contents := GetJson(url, page, silent)
 
 	var t Tumblr
 	json.Unmarshal(contents, &t)
 	return t
 }
 
-func GetJson(url string, page int) []byte {
-	contents := restRequest(url, page)
+func GetJson(url string, page int, silent bool) []byte {
+	contents := restRequest(url, page, silent)
 	contents = filterContent(contents, "var tumblr_api_read = ", "", 1)
 	contents = filterContent(contents, ";", "", -1)
 	return contents
@@ -78,7 +83,7 @@ func filterContent(data []byte, orig string, target string, n int) []byte {
 	return []byte(c)
 }
 
-func restRequest(url string, page int) []byte {
+func restRequest(url string, page int, silent bool) []byte {
 	if page != 1 {
 		p := (page - 1) * 20
 		url = fmt.Sprintf("%s/api/read/json?start=%d", url, p)
@@ -86,7 +91,9 @@ func restRequest(url string, page int) []byte {
 		url = fmt.Sprintf("%s/api/read/json", url)
 	}
 
-	fmt.Println("REST Request url: ", url)
+	if !silent {
+		fmt.Println("REST Request url: ", url)
+	}
 
 	resp, err := http.Get(url)
 	defer resp.Body.Close()
@@ -115,18 +122,29 @@ func displayRawJson(contents []byte) {
 	os.Exit(0)
 }
 
-func (t Tumblr) DownloadImages() {
-	for i, post := range t.Posts {
-		fmt.Println("Post # ", i)
-		fmt.Println(" ---> Caption: ", post.Caption)
-		fmt.Println(" ---> Url    : ", post.PhotoUrl)
-		if post.Class != "photo" {
-			fmt.Println(" ---> SKIPPING (not photo post)")
-			continue
+func (t Tumblr) DownloadImages(silent bool) {
+
+	if silent {
+		for _, post := range t.Posts {
+			if post.Class != "photo" {
+				continue
+			}
+			post.downloadImage()
 		}
-		post.downloadImage()
-		fmt.Println()
+	} else {
+		for i, post := range t.Posts {
+			fmt.Println("Post # ", i)
+			fmt.Println(" ---> Caption: ", post.Caption)
+			fmt.Println(" ---> Url    : ", post.PhotoUrl)
+			if post.Class != "photo" {
+				fmt.Println(" ---> SKIPPING (not photo post)")
+				continue
+			}
+			post.downloadImage()
+			fmt.Println()
+		}
 	}
+
 }
 
 func (p Post) downloadImage() {
@@ -139,7 +157,7 @@ func (p Post) downloadImage() {
 
 	contents, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal("Trouble reading reesponse body!")
+		log.Fatal("Trouble reading response body!")
 	}
 
 	filename := path.Base(p.PhotoUrl)
@@ -156,22 +174,54 @@ func (p Post) downloadImage() {
 func main() {
 	pagePtr := flag.Int("page", 1, "blog page to download")
 	rawJsonPtr := flag.Bool("raw", false, "dump raw json output for debugging")
+	allPtr := flag.Bool("all", false, "downloads all images")
 	flag.Parse()
 
-	url := flag.Arg(0)
+	url := strings.TrimSuffix(flag.Arg(0), "/")
+
 	if url == "" {
-		fmt.Fprintf(os.Stderr, "Please supply a tumblr url!\n")
+		fmt.Fprint(os.Stderr, "Please supply a tumblr url!\n")
 		fmt.Fprintf(os.Stderr, "usage: %s [options] url\n", os.Args[0])
 		os.Exit(0)
 	}
 
 	if *rawJsonPtr == true {
-		contents := GetJson(url, *pagePtr)
+		contents := GetJson(url, *pagePtr, false)
 		displayRawJson(contents)
 		os.Exit(0)
 	}
 
-	t := NewTumblr(url, *pagePtr)
-	fmt.Println("Blog Title: ", t.Blog.Title, "\n")
-	t.DownloadImages()
+	if *allPtr == true {
+		t := NewTumblr(url, *pagePtr, true)
+		pages := t.NumberOfPosts / 20
+		if t.NumberOfPosts%20 != 0 {
+			pages++
+		}
+
+		bar := pb.New(pages)
+
+		bar.SetRefreshRate(time.Second)
+		bar.SetWidth(80)
+		bar.SetMaxWidth(100)
+		bar.Start()
+
+		for i := 1; i < pages; i++ {
+			t := NewTumblr(url, i, true)
+			t.DownloadImages(true)
+			pageCounter++
+			bar.Increment()
+			time.Sleep(10 * time.Second)
+		}
+		bar.FinishPrint("Done! " + string(pageCounter) + " of " + string(pages) + " downloaded")
+		//fmt.Printf("Done! %d of %d pages downloaded", pageCounter, pages)
+		os.Exit(0)
+
+	} else {
+		t := NewTumblr(url, *pagePtr, false)
+		fmt.Println("Blog Title: ", t.Blog.Title)
+		fmt.Println("Number of Posts: ", t.NumberOfPosts)
+		t.DownloadImages(false)
+		os.Exit(0)
+	}
+
 }
